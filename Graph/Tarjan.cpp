@@ -3,12 +3,12 @@ vector<int> dfn(n + 1), low(n + 1), Size(n + 1), id(n + 1), st(n + 1), s;
 function<void(int)> tarjan = [&](int u) {
     dfn[u] = low[u] = ++ timestamp;
     s.push_back(u), st[u] = 1;
-    for (auto j : g[u]) {
-        if (!dfn[j]) {
-            tarjan(j);
-            low[u] = min(low[u], low[j]);
-        } else if (st[j]) {
-            low[u] = min(low[u], dfn[j]);
+    for (auto v : g[u]) {
+        if (!dfn[v]) {
+            tarjan(v);
+            low[u] = min(low[u], low[v]);
+        } else if (st[v]) {
+            low[u] = min(low[u], dfn[v]);
         }
     }
     if (dfn[u] == low[u]) {
