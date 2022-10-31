@@ -1,14 +1,5 @@
 using i64 = long long;
 constexpr int mod = 998244353;
-int norm(int x) {
-    if (x < 0) {
-        x += mod;
-    }
-    if (x >= mod) {
-        x -= mod;
-    }
-    return x;
-}
 template<class T>
 T power(T a, int b) {
     T res = 1;
@@ -19,64 +10,99 @@ T power(T a, int b) {
     }
     return res;
 }
-struct Z {
+template<int mod>
+struct ModInt {
     int x;
-    Z(int x = 0) : x(norm(x)) {}
+    ModInt() : x(0) {}
+    ModInt(i64 y) : x(y >= 0 ? y % mod : (mod - (-y) % mod) % mod) {}
+    ModInt &operator+=(const ModInt &p) {
+        if ((x += p.x) >= mod) x -= mod;
+        return *this;
+    }
+    ModInt &operator-=(const ModInt &p) {
+        if ((x += mod - p.x) >= mod) x -= mod;
+        return *this;
+    }
+    ModInt &operator*=(const ModInt &p) {
+        x = (int)(1LL * x * p.x % mod);
+        return *this;
+    }
+    ModInt &operator/=(const ModInt &p) {
+        *this *= p.inv();
+        return *this;
+    }
+    ModInt operator-() const {
+        return ModInt(-x);
+    }
+    ModInt operator+(const ModInt &p) const {
+        return ModInt(*this) += p;
+    }
+    ModInt operator-(const ModInt &p) const {
+        return ModInt(*this) -= p;
+    }
+    ModInt operator*(const ModInt &p) const {
+        return ModInt(*this) *= p;
+    }
+    ModInt operator/(const ModInt &p) const {
+        return ModInt(*this) /= p;
+    }
+    bool operator==(const ModInt &p) const {
+        return x == p.x;
+    }
+    bool operator!=(const ModInt &p) const {
+        return x != p.x;
+    }
+    ModInt inv() const {
+        int a = x, b = mod, u = 1, v = 0, t;
+        while (b > 0) {
+            t = a / b;
+            swap(a -= t * b, b);
+            swap(u -= t * v, v);
+        }
+        return ModInt(u);
+    }
+    ModInt pow(i64 n) const {
+        ModInt res(1), mul(x);
+        while (n > 0) {
+            if (n & 1) res *= mul;
+            mul *= mul;
+            n >>= 1;
+        }
+        return res;
+    }
+    friend ostream &operator<<(ostream &os, const ModInt &p) {
+        return os << p.x;
+    }
+    friend istream &operator>>(istream &is, ModInt &a) {
+        i64 t;
+        is >> t;
+        a = ModInt<mod>(t);
+        return (is);
+    }
     int val() const {
         return x;
     }
-    Z operator-() const {
-        return Z(norm(mod - x));
-    }
-    Z inv() const {
-        assert(x != 0);
-        return power(*this, mod - 2);
-    }
-    Z &operator*=(const Z &rhs) {
-        x = i64(x) * rhs.x % mod;
-        return *this;
-    }
-    Z &operator+=(const Z &rhs) {
-        x = norm(x + rhs.x);
-        return *this;
-    }
-    Z &operator-=(const Z &rhs) {
-        x = norm(x - rhs.x);
-        return *this;
-    }
-    Z &operator/=(const Z &rhs) {
-        return *this *= rhs.inv();
-    }
-    friend Z operator*(const Z &lhs, const Z &rhs) {
-        Z res = lhs;
-        res *= rhs;
-        return res;
-    }
-    friend Z operator+(const Z &lhs, const Z &rhs) {
-        Z res = lhs;
-        res += rhs;
-        return res;
-    }
-    friend Z operator-(const Z &lhs, const Z &rhs) {
-        Z res = lhs;
-        res -= rhs;
-        return res;
-    }
-    friend Z operator/(const Z &lhs, const Z &rhs) {
-        Z res = lhs;
-        res /= rhs;
-        return res;
-    }
-    friend istream &operator>>(istream &is, Z &a) {
-        i64 v;
-        is >> v;
-        a = Z(v);
-        return is;
-    }
-    friend ostream &operator<<(ostream &os, const Z &a) {
-        return os << a.val();
+    static constexpr int val_mod() {
+        return mod;
     }
 };
+using Z = ModInt<mod>;
+vector<Z> fact, infact;
+void init(int n) {
+    fact.resize(n + 1), infact.resize(n + 1);
+    fact[0] = infact[0] = 1;
+    for (int i = 1; i <= n; i ++) {
+        fact[i] = fact[i - 1] * i;
+    }
+    infact[n] = fact[n].inv();
+    for (int i = n; i; i --) {
+        infact[i - 1] = infact[i] * i;
+    }
+}
+Z C(int n, int m) {
+    if (n < 0 || m < 0 || n < m) return Z(0);
+    return fact[n] * infact[n - m] * infact[m];
+}
 vector<int> rev;
 vector<Z> roots{0, 1};
 void dft(vector<Z> &a) {
@@ -219,7 +245,7 @@ struct Poly {
         }
         vector<Z> res(size() - 1);
         for (int i = 0; i < size() - 1; i ++) {
-            res[i] = (i + 1) * a[i + 1];
+            res[i] = a[i + 1] * (i + 1);
         }
         return Poly(res);
     }
@@ -280,4 +306,200 @@ struct Poly {
         reverse(b.a.begin(), b.a.end());
         return ((*this) * b).divxk(n - 1);
     }
+    vector<Z> eval(vector<Z> x) const {
+        if (size() == 0) {
+            return vector<Z>(x.size(), 0);
+        }
+        const int n = max(int(x.size()), size());
+        vector<Poly> q(n << 2);
+        vector<Z> ans(x.size());
+        x.resize(n);
+        function<void(int, int, int)> build = [&](int p, int l, int r) {
+            if (r - l == 1) {
+                q[p] = Poly{1, -x[l]};
+            } else {
+                int m = l + r >> 1;
+                build(p << 1, l, m);
+                build(p << 1 | 1, m, r);
+                q[p] = q[p << 1] * q[p << 1 | 1];
+            }
+        };
+        build(1, 0, n);
+        function<void(int, int, int, const Poly &)> work = [&](int p, int l, int r, const Poly &num) {
+            if (r - l == 1) {
+                if (l < int(ans.size())) {
+                    ans[l] = num[0];
+                }
+            } else {
+                int m = (l + r) / 2;
+                work(p << 1, l, m, num.mulT(q[p << 1 | 1]).modxk(m - l));
+                work(p << 1 | 1, m, r, num.mulT(q[p << 1]).modxk(r - m));
+            }
+        };
+        work(1, 0, n, mulT(q[1].inv(n)));
+        return ans;
+    }
+    Poly inter(const Poly &y) const {
+        vector<Poly> Q(a.size() << 2), P(a.size() << 2);
+        function<void(int, int, int)> dfs1 = [&](int p, int l, int r) {
+            int m = l + r >> 1;
+            if (l == r) {
+                Q[p].a.push_back(-a[m]);
+                Q[p].a.push_back(Z(1));
+                return;
+            }
+            dfs1(p << 1, l, m), dfs1(p << 1 | 1, m + 1, r);
+            Q[p] = Q[p << 1] * Q[p << 1 | 1];
+        };
+        dfs1(1, 0, a.size() - 1);
+        Poly f;
+        f.a.resize((int)(Q[1].size()) - 1);
+        for (int i = 0; i + 1 < Q[1].size(); i ++) {
+            f[i] = Q[1][i + 1] * (i + 1);
+        }
+        Poly g = f.eval(a);
+        function<void(int, int, int)> dfs2 = [&](int p, int l, int r) {
+            int m = l + r >> 1;
+            if (l == r) {
+                P[p].a.push_back(y[m] * power(g[m], mod - 2));
+                return;
+            }
+            dfs2(p << 1, l, m), dfs2(p << 1 | 1, m + 1, r);
+            P[p].a.resize(r - l + 1);
+            Poly A = P[p << 1] * Q[p << 1 | 1];
+            Poly B = P[p << 1 | 1] * Q[p << 1];
+            for (int i = 0; i <= r - l; i ++) {
+                P[p][i] = A[i] + B[i];
+            }
+        };
+        dfs2(1, 0, a.size() - 1);
+        return P[1];
+    }
 };
+Poly toFPP(vector<Z> &a) {
+    int n = a.size();
+    vector<Z> b(n);
+    iota(b.begin(), b.end(), 0);
+    auto F = Poly(a).eval(b);
+    vector<Z> f(n), g(n);
+    for (int i = 0, sign = 1; i < n; i ++, sign *= -1) {
+        f[i] = F[i] * infact[i];
+        g[i] = Z(sign) * infact[i];
+    }
+    return Poly(f) * Poly(g);
+}
+Poly toOP(vector<Z> &a) {
+    int n = a.size();
+    vector<Z> g(n);
+    for (int i = 0; i < n; i ++) {
+        g[i] = infact[i];
+    }
+    auto F = Poly(a) * Poly(g);
+    for (int i = 0; i < n; i ++) {
+        F[i] *= fact[i];
+    }
+    vector<Z> p(n);
+    iota(p.begin(), p.end(), 0);
+    return Poly(p).inter(F);
+}
+Poly FPPMul(Poly a, Poly b) {
+    int n = a.size() + b.size() - 1;
+    Poly p;
+    p.resize(n);
+    for (int i = 0; i < n; i ++) {
+        p[i] = infact[i];
+    }
+    a *= p, b *= p;
+    for (int i = 0; i < n; i ++) {
+        a[i] *= b[i] * fact[i];
+    }
+    for (int i = 1; i < n; i += 2) {
+        p[i] = -p[i];
+    }
+    a *= p;
+    a.resize(n);
+    return a;
+}
+Poly Lagrange2(vector<Z> &f, int m, int k) {
+    int n = f.size() - 1;
+    vector<Z> a(n + 1), b(n + 1 + k);
+    for (int i = 0; i <= n; i ++) {
+        a[i] = f[i] * ((n - i) & 1 ? -1 : 1) * infact[n - i] * infact[i];
+    }
+    for (int i = 0; i <= n + k; i ++) {
+        b[i] = Z(1) / (m - n + i);
+    }
+    Poly ans = Poly(a) * Poly(b);
+    for (int i = 0; i <= k; i ++) {
+        ans[i] = ans[i + n];
+    }
+    ans.resize(k + 1);
+    Z sum = 1;
+    for (int i = 0; i <= n; i ++) {
+        sum *= m - i;
+    }
+    for (int i = 0; i <= k; i ++) {
+        ans[i] *= sum;
+        sum *= Z(m + i + 1) / (m - n + i);
+    }
+    return ans;
+}
+Poly S2_row;
+void S2_row_init(int n) {
+    vector<Z> f(n + 1), g(n + 1);
+    for (int i = 0; i <= n; i ++) {
+        f[i] = power(Z(i), n) * infact[i];
+        g[i] = Z(i & 1 ? -1 : 1) * infact[i];
+    }
+    S2_row = Poly(f) * Poly(g);
+}
+Poly S2_col;
+void S2_col_init(int n, int k) {
+    n ++;
+    vector<Z> f(n);
+    for (int i = 1; i < n; i ++) {
+        f[i] = infact[i];
+    }
+    auto ans = Poly(f).pow(k, n);
+    S2_col.resize(n + 1);
+    for (int i = 0; i < n; i ++) {
+        S2_col[i] = ans[i] * fact[i] * infact[k];
+    }
+}
+Poly Bell;
+void Bell_init(int n) {
+    vector<Z> f(n + 1);
+    for (int i = 1; i <= n; i ++) {
+        f[i] = infact[i];
+    }
+    auto ans = Poly(f).exp(n + 1);
+    Bell.resize(n + 1);
+    for (int i = 0; i <= n; i ++) {
+        Bell[i] = ans[i] * fact[i];
+    }
+}
+vector<Z> p;
+void p_init(int n) {
+    vector<int> f(n + 1);
+    p.resize(n + 1);
+    p[0] = 1;
+    f[0] = 1, f[1] = 2, f[2] = 5, f[3] = 7;
+    for (int i = 4; f[i - 1] <= n; i ++) {
+        f[i] = 3 + 2 * f[i - 2] - f[i - 4];
+    }
+    for (int i = 1; i <= n; i ++) {
+        for (int j = 0; f[j] <= i; j ++) {
+            p[i] += Z(j & 2 ? -1 : 1) * p[i - f[j]];
+        }
+    }
+}
+Poly P;
+void p_init(int n, int m) {
+    vector<Z> a(n + 1);
+    for (int i = 1; i <= m; i ++) {
+        for (int j = i; j <= n; j += i) {
+            a[j] += Z(j / i).inv();
+        }
+    }
+    P = Poly(a).exp(n + 1);
+}
