@@ -1,9 +1,8 @@
 struct ST {
     vector<vector<int>> f, g, h;
-    ST(int n, int m, vector<int> a) : f(n), g(n), h(n) {
+    ST(int n, vector<int> a) : f(n, vector<int>(__lg(n) + 1)), g(n, vector<int>(__lg(n) + 1)), h(n, vector<int>(__lg(n) + 1)) {
         for (int i = 1; i < n; i ++) {
-            f[i].resize(m), g[i].resize(m), h[i].resize(m);
-            f[i][0] = g[i][0] = h[i][0] =  a[i];
+            f[i][0] = g[i][0] = h[i][0] = a[i];
         }
         for (int j = 1; (1ll << j) < n; j ++) {
             for (int i = 1; i + (1ll << j) - 1 < n; i ++) {
